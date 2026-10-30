@@ -31,8 +31,6 @@ class ZonesUi : Form {
     RadioButton thisGun, allGuns;
     readonly List<ZoneBox> boxes = new List<ZoneBox>();
     // 2026-10-25 (Tefa: "all please"): the hand on the slide / pump / bolt (and its arc over the gun), and the gun in the right hand
-    ValueBox handBox, aimBox;
-    PairsBox pairsBox;   // 2026-10-25: the numbered hand pairs (PairsBox.cs)
     // 2026-10-28 (Tefa: "list all the possible grip pairs for that weapon ... so that things fit into a window and i don't have to
     // scroll down and up"): ONE part at a time. 2026-10-30 (Tefa: "now we need the list for each, with the arrow on the side to
     // drop down the tuning slider, so there is no doubt in what i'm tuning"): every part the gun in hand has is a row with an
@@ -43,7 +41,9 @@ class ZonesUi : Form {
     string layoutSig = "";
     const int HEAD_H = 40;
     string partWord = "SLIDE / PUMP / BOLT";   // slide / pump / bolt: what the gun in hand has
-    DateTime lastHandWrite = DateTime.MinValue;
+    DateTime lastOpenWrite = DateTime.MinValue;
+    string lastOpenKey = null;
+    const double OPEN_EVERY_S = 1.0;   // the open row is written for the game this often (it counts it as gone after 3 s)
 
     public ZonesUi(string gameArg) {
         Text = "Grip Zones";
@@ -69,20 +69,6 @@ class ZonesUi : Form {
         boxes.Add(new ZoneBox(this, "handle", "GRIP HANDLE", "handguns: left grip in it cups the handle"));
         boxes.Add(new ZoneBox(this, "drum", "THE DRUM", "revolvers: left grip opens it and holds the hand there; LT loads a round, LT when full closes it"));
         boxes.Add(new ZoneBox(this, "insert", "INSERT POINT", "GM 79: a grenade held with the left grip goes in here; left grip + LT takes one out (live or spent)"));
-        handBox = new ValueBox("HAND ON THE BOLT", "the left hand while it holds the slide / pump / bolt: move it, turn it, and arc it over the gun on the way", new[] {
-            // 2026-10-29 (Tefa: "move them smoothly for the weapon's length worth"): a rifle's length forward / back, not 15 cm
-            new ValueRow("z", "forward / back", "cm", -60, 100, 0.5), new ValueRow("y", "up / down", "cm", -30, 30, 0.5),
-            new ValueRow("x", "right / left", "cm", -30, 30, 0.5), new ValueRow("rx", "tilt fingers up / down", "°", -180, 180, 1),
-            new ValueRow("ry", "turn left / right", "°", -180, 180, 1), new ValueRow("rz", "roll", "°", -180, 180, 1),
-            new ValueRow("arc", "arc over the gun", "cm", 0, 25, 0.5) }, () => Changed(), (t, h) => Btn(t, h));
-        aimBox = new ValueBox("GUN IN THE RIGHT HAND", "where the gun points and sits in the right hand", new[] {
-            new ValueRow("pitch", "aim up / down", "°", -45, 45, 1), new ValueRow("yaw", "aim left / right", "°", -45, 45, 1),
-            new ValueRow("roll", "roll", "°", -45, 45, 1), new ValueRow("z", "forward / back", "cm", -10, 10, 0.5),
-            new ValueRow("y", "up / down", "cm", -10, 10, 0.5), new ValueRow("x", "right / left", "cm", -10, 10, 0.5) }, () => Changed(), (t, h) => Btn(t, h));
-        pairsBox = new PairsBox(file, () => Group() == "default" ? "any" : Group(), (t, h) => Btn(t, h));
-        scroll.Controls.Add(pairsBox);  // docked top: added first = shown last
-        scroll.Controls.Add(aimBox);
-        scroll.Controls.Add(handBox);
         for (int i = boxes.Count - 1; i >= 0; i--) scroll.Controls.Add(boxes[i]);   // docked top: added last = shown first
         entryKey = settings.Get("part", "");
         BuildTop();
@@ -155,25 +141,19 @@ class ZonesUi : Form {
         if (Has("mag")) r.Add(new Entry { Key = "mag", Label = "magazine  (where LG takes it out)", Shows = new Control[] { BoxOf("mag") } });
         if (Has("well")) r.Add(new Entry { Key = "well", Label = "the well  (where a magazine goes in)", Shows = new Control[] { BoxOf("well") } });
         if (Has("part") && Has("slide-left") && !allGuns.Checked && partName == "slide") {   // a pistol: the slide from either side
-            r.Add(new Entry { Key = "part", Label = "slide, right side  (where LG takes it, where the hand sits)", Shows = new Control[] { BoxOf("part"), handBox } });
-            r.Add(new Entry { Key = "slide-left", Label = "slide, left side  (where LG takes it, where the hand sits)", Shows = new Control[] { BoxOf("slide-left"), handBox } });
-        } else if (Has("part")) r.Add(new Entry { Key = "part", Label = partName + "  (where LG takes it, where the hand sits)", Shows = new Control[] { BoxOf("part"), handBox } });
+            r.Add(new Entry { Key = "part", Label = "slide, right side  (where LG takes it)", Shows = new Control[] { BoxOf("part") } });
+            r.Add(new Entry { Key = "slide-left", Label = "slide, left side  (where LG takes it)", Shows = new Control[] { BoxOf("slide-left") } });
+        } else if (Has("part")) r.Add(new Entry { Key = "part", Label = partName + "  (where LG takes it)", Shows = new Control[] { BoxOf("part") } });
         if (Has("grip")) r.Add(new Entry { Key = "grip", Label = "front grip", Shows = new Control[] { BoxOf("grip") } });
         if (Has("handle")) r.Add(new Entry { Key = "handle", Label = "grip handle", Shows = new Control[] { BoxOf("handle") } });
         if (Has("drum")) r.Add(new Entry { Key = "drum", Label = "the drum", Shows = new Control[] { BoxOf("drum") } });
         if (Has("insert")) r.Add(new Entry { Key = "insert", Label = "insert point", Shows = new Control[] { BoxOf("insert") } });
-        r.Add(new Entry { Key = "aim", Label = "the gun in the right hand", Shows = new Control[] { aimBox } });
-        foreach (var p in pairsBox.ForGun(Group() == "default" ? "any" : Group()))
-            r.Add(new Entry { Key = "pair:" + p.Key, Label = "pair " + p.Key + "  -  " + p.Value, Shows = new Control[] { pairsBox } });
-        r.Add(new Entry { Key = "pair:new", Label = "+  a new pair", Shows = new Control[] { pairsBox } });
         return r;
     }
 
     Entry Current(List<Entry> all) {
         if (entryKey == "") return null;
         foreach (var e in all) if (e.Key == entryKey) return e;
-        if (entryKey.StartsWith("pair:"))   // a pair picked with the pairs box's own arrows is still "a pair"
-            foreach (var e in all) if (e.Key == "pair:" + pairsBox.SelectedNumber) return e;
         return null;
     }
 
@@ -215,11 +195,10 @@ class ZonesUi : Form {
     }
 
     void PickPart(string key) {
-        if (key == "pair:new") { pairsBox.AddNew(); key = "pair:" + pairsBox.SelectedNumber; }
-        else if (key.StartsWith("pair:")) { int n; if (int.TryParse(key.Substring(5), out n)) pairsBox.SelectNumber(n); }
         entryKey = key;
         settings.Set("part", key);
         ShowPart();
+        WriteOpen(true);
     }
 
     // ---- the controller nudge (Nudge.cs, the same buttons as Hand Poser) -------------------------------------------------
@@ -243,7 +222,6 @@ class ZonesUi : Form {
         if (remember) settings.Set("game", folder);
         lastZonesWrite = DateTime.MinValue;
         RefreshFromFile();
-        pairsBox.Reload();
     }
 
     void PickFolder() {
@@ -251,9 +229,6 @@ class ZonesUi : Form {
             if (d.ShowDialog(this) == DialogResult.OK) UseFolder(d.SelectedPath, true);
         }
     }
-
-    // slide_hand.json names a gun "ri3042"; "any" = all guns (as the in-game menu)
-    string HandKey() { string g = Group(); return g == "default" ? "any" : "ri" + g; }
 
     internal string Group() {
         if (allGuns.Checked || live == null || live.Gun <= 0) return "default";
@@ -287,18 +262,13 @@ class ZonesUi : Form {
         int gun = live == null ? 0 : live.Gun;
         DateTime w = DateTime.MinValue;
         try { if (File.Exists(file.ZonesPath)) w = File.GetLastWriteTime(file.ZonesPath); } catch (IOException) { }
-        DateTime hw = DateTime.MinValue;
-        try { string hp = HandFile.PathIn(file); if (hp != null && File.Exists(hp)) hw = File.GetLastWriteTime(hp); } catch (IOException) { }
-        if (!saveTimer.Enabled && (gun != shownGun || w != lastZonesWrite || hw != lastHandWrite)) RefreshFromFile();
-        if (handBox != null) {   // named for what the gun in hand has
-            string part = "SLIDE / PUMP / BOLT";   // no gun in hand: any of them
-            if (live != null) foreach (var k in new[] { "bolt", "pump", "slide" }) { var z = live.Find(k); if (z != null && z.On) { part = k.ToUpperInvariant(); break; } }
-            handBox.Title = "LAND: HAND ON THE " + part;
-            partWord = part;
-        }
+        if (!saveTimer.Enabled && (gun != shownGun || w != lastZonesWrite)) RefreshFromFile();
+        string part = "SLIDE / PUMP / BOLT";   // named for what the gun in hand has; no gun in hand: any of them
+        if (live != null) foreach (var k in new[] { "bolt", "pump", "slide" }) { var z = live.Find(k); if (z != null && z.On) { part = k.ToUpperInvariant(); break; } }
+        partWord = part;
         foreach (var b in boxes) b.ShowLive(live);
-        pairsBox.Poll();
         ShowPart();
+        WriteOpen(false);
     }
 
     void RefreshFromFile() {
@@ -308,10 +278,6 @@ class ZonesUi : Form {
         var all = file.Load();
         syncing = true;
         foreach (var b in boxes) b.Load(all, Group(), live);
-        try { string hp = HandFile.PathIn(file); lastHandWrite = hp != null && File.Exists(hp) ? File.GetLastWriteTime(hp) : DateTime.MinValue; } catch (IOException) { }
-        var hands = HandFile.Load(file);
-        handBox.Load(k => HandFile.Get(hands, HandKey(), k));
-        aimBox.Load(k => ZoneFile.Effective(all, Group(), "aim", k));
         syncing = false;
     }
 
@@ -321,22 +287,24 @@ class ZonesUi : Form {
         if (file.Folder == null) return;
         var all = file.Load();   // fresh: keeps what the in-game menu or another gun's numbers hold
         foreach (var b in boxes) b.Store(all, Group());
-        if (aimBox.Touched) { ZoneFile.SetEntry(all, Group(), "aim", aimBox.Values()); aimBox.Touched = false; }
         try { file.Save(all); lastZonesWrite = File.GetLastWriteTime(file.ZonesPath); }
         catch (Exception ex) { status.Text = "could not save: " + ex.Message; status.ForeColor = Bad; }
-        if (handBox.Touched) {   // the same file as the in-game menu's slide-hand sliders
-            try {
-                var hands = HandFile.Load(file);
-                var mine = handBox.Values();
-                object old;
-                if (hands.TryGetValue(HandKey(), out old) && old is Dictionary<string, object>)
-                    foreach (var kv in (Dictionary<string, object>)old) if (!mine.ContainsKey(kv.Key)) mine[kv.Key] = kv.Value;
-                hands[HandKey()] = mine;
-                HandFile.Save(file, hands);
-                lastHandWrite = File.GetLastWriteTime(HandFile.PathIn(file));
-                handBox.Touched = false;
-            } catch (Exception ex) { status.Text = "could not save the hand: " + ex.Message; status.ForeColor = Bad; }
-        }
+    }
+
+    // 2026-10-30 (Tefa: "only the dropped down menu shows the spheres, collapsed ones don't"): the open row, for the game's
+    // zones script, which draws only that zone's sphere; written on every change and once a second (a file older than 3 s
+    // means the window is closed, so the game draws nothing)
+    void WriteOpen(bool now) {
+        if (file.DataDir == null || !Directory.Exists(file.DataDir)) return;
+        if (!now && entryKey == lastOpenKey && (DateTime.Now - lastOpenWrite).TotalSeconds < OPEN_EVERY_S) return;
+        try {
+            long t = (long)(DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
+            string path = Path.Combine(file.DataDir, "zones_open.json"), tmp = path + ".tmp";
+            File.WriteAllText(tmp, "{ \"key\": \"" + entryKey.Replace("\"", "") + "\", \"t\": " + t + " }");
+            if (File.Exists(path)) File.Replace(tmp, path, null); else File.Move(tmp, path);
+            lastOpenKey = entryKey;
+            lastOpenWrite = DateTime.Now;
+        } catch (Exception) { }
     }
 
     internal void Forget(string zone) {
