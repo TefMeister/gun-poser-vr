@@ -2,8 +2,9 @@
 // have to be colours. as long as somehow i can tell that a spot is activation spot and where it takes the hand afterwards, and
 // what it is for"). Each pair has a number, a name (what it is for), the gun it is for ("any" = all guns), an ACTIVATION
 // sphere (the left grip pressed inside it starts the pair) and a LANDING spot (where the left hand then goes and stays while the
-// grip is held). Only the pair picked here is drawn on the gun: a big sphere = activation, a small dot = landing, a dotted
-// line between them. File: data\visceral_re8\pairs.json { "show": n, "pairs": [ { n, name, gun, ax, ay, az, ar, lx, ly, lz } ] },
+// grip is held). On the gun, an activation sphere shows only as the left hand nears it (2026-10-30, Tefa: "only the sphere of
+// the activation area shows up when the hand reaches the edge of it"); "show" in the file is the pair picked here, so the
+// window opens on it again. File: data\visceral_re8\pairs.json { "show": n, "pairs": [ { n, name, gun, ax, ay, az, ar, lx, ly, lz } ] },
 // offsets from the gun hand in the gun's axes (x right, y up, z forward, metres), read by the plugin (src/pairs.cpp) each second.
 using System;
 using System.Collections.Generic;
@@ -59,11 +60,11 @@ class PairsBox : Panel {
     readonly Label which;
     readonly TextBox name;
     readonly ValueBox values;
-    readonly Button showBtn, removeBtn;
+    readonly Button removeBtn;
     readonly Timer saveTimer = new Timer { Interval = 120 };
     List<Dictionary<string, object>> pairs = new List<Dictionary<string, object>>();
     int sel = -1;                            // index into pairs
-    bool shown = true, syncing;
+    bool syncing;
     DateTime lastWrite = DateTime.MinValue, removeArmed = DateTime.MinValue;
 
     public PairsBox(ZoneFile file, Func<string> gunKey, Func<string, EventHandler, Button> btn) {
@@ -73,14 +74,12 @@ class PairsBox : Panel {
         Controls.Add(inner);
         var head = new SkinLabel { Dock = DockStyle.Top, Height = 28, Font = new Font("Segoe UI Semibold", 12f), ForeColor = Ink, Text = "HAND PAIRS" };
         var note = new SkinLabel { Dock = DockStyle.Top, Height = 44, ForeColor = Dim,
-            Text = "on the gun: BIG sphere = left grip there starts it, small DOT = where the hand lands, dotted line between. Only the pair shown here is drawn." };
+            Text = "on the gun: the START sphere shows as the left hand nears it; left grip inside it takes the hand to LAND." };
         which = new SkinLabel { Dock = DockStyle.Top, Height = 30, ForeColor = Ink, Font = new Font("Segoe UI Semibold", 11f), Padding = new Padding(0, 6, 0, 0) };
         var nav = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 42, BackColor = Color.Transparent, WrapContents = false };
         nav.Controls.Add(btn("◀", (s, e) => Pick(sel - 1)));
         nav.Controls.Add(btn("▶", (s, e) => Pick(sel + 1)));
         nav.Controls.Add(btn("ADD A PAIR", (s, e) => Add()));
-        showBtn = btn("HIDE", (s, e) => { shown = !shown; Save(); });
-        nav.Controls.Add(showBtn);
         removeBtn = btn("REMOVE", (s, e) => Remove());
         nav.Controls.Add(removeBtn);
         var nameRow = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = Color.Transparent };
@@ -127,7 +126,6 @@ class PairsBox : Panel {
         pairs = PairFile.Pairs(all);
         object v;
         int showN = all.TryGetValue("show", out v) ? (int)Json.Num(v, 0) : 0;
-        shown = showN > 0;
         int keep = sel >= 0 && sel < pairs.Count ? (int)PairFile.Num(pairs[sel], "n") : showN;
         sel = pairs.FindIndex(d => (int)PairFile.Num(d, "n") == keep);
         if (sel < 0 && pairs.Count > 0) sel = 0;
@@ -138,19 +136,18 @@ class PairsBox : Panel {
     void ShowPair() {
         syncing = true;
         bool any = sel >= 0 && sel < pairs.Count;
-        values.Enabled = name.Enabled = removeBtn.Enabled = showBtn.Enabled = any;
+        values.Enabled = name.Enabled = removeBtn.Enabled = any;
         if (any) {
             var d = pairs[sel];
             string g = PairFile.Str(d, "gun");
             which.Text = "PAIR " + (int)PairFile.Num(d, "n") + "  (" + (sel + 1) + " of " + pairs.Count + ")  ·  " +
-                         (g == "" || g == "any" ? "all guns" : GunLabel(g)) + (shown ? "" : "  ·  HIDDEN");
+                         (g == "" || g == "any" ? "all guns" : GunLabel(g));
             name.Text = PairFile.Str(d, "name");
             values.Load(k => PairFile.Num(d, k) / M_PER_CM);
         } else {
             which.Text = "no pairs yet: ADD A PAIR";
             name.Text = "";
         }
-        showBtn.Text = shown ? "HIDE" : "SHOW";
         syncing = false;
     }
 
@@ -158,7 +155,6 @@ class PairsBox : Panel {
         if (pairs.Count == 0) return;
         Store();
         sel = ((i % pairs.Count) + pairs.Count) % pairs.Count;
-        shown = true;
         ShowPair();
         Save();
     }
@@ -174,7 +170,6 @@ class PairsBox : Panel {
             { "lx", 0.0 }, { "ly", NEW_LY_CM * M_PER_CM }, { "lz", NEW_LZ_CM * M_PER_CM } };
         pairs.Add(p);
         sel = pairs.Count - 1;
-        shown = true;
         ShowPair();
         Save();
     }
@@ -203,7 +198,7 @@ class PairsBox : Panel {
         Store();
         var all = PairFile.Load(file);
         PairFile.SetPairs(all, pairs);
-        all["show"] = (double)(shown && sel >= 0 && sel < pairs.Count ? (int)PairFile.Num(pairs[sel], "n") : 0);
+        all["show"] = (double)(sel >= 0 && sel < pairs.Count ? (int)PairFile.Num(pairs[sel], "n") : 0);
         try { PairFile.Save(file, all); string p = PairFile.PathIn(file); lastWrite = File.GetLastWriteTime(p); } catch (Exception) { }
         ShowPair();
     }

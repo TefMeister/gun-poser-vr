@@ -1,4 +1,4 @@
-// ZonesUi.cs -- the Grip Zones window. Top: the game and the gun in hand, SHOW THE SPHERES, and whether the sliders set THIS GUN
+// ZonesUi.cs -- the Grip Zones window. Top: the game and the gun in hand, and whether the sliders set THIS GUN
 // or ALL GUNS. Then one box per zone (the magazine grab, the well, the slide / pump / bolt, the front grip): its live line ("hand 14 cm away,
 // needs 12", green when the hand is inside), four sliders (forward / back, up / down, right / left, size) each with - and +
 // buttons for half-centimetre steps (easier than dragging with a VR pointer), and RESET. Every change goes into zones.json at
@@ -28,7 +28,6 @@ class ZonesUi : Form {
 
     Label status;
     SkinPanel scroll;
-    CheckBox show;
     RadioButton thisGun, allGuns;
     readonly List<ZoneBox> boxes = new List<ZoneBox>();
     // 2026-10-25 (Tefa: "all please"): the hand on the slide / pump / bolt (and its arc over the gun), and the gun in the right hand
@@ -72,8 +71,9 @@ class ZonesUi : Form {
         boxes.Add(new ZoneBox(this, "drum", "THE DRUM", "revolvers: left grip opens it and holds the hand there; LT loads a round, LT when full closes it"));
         boxes.Add(new ZoneBox(this, "insert", "INSERT POINT", "GM 79: a grenade held with the left grip goes in here; left grip + LT takes one out (live or spent)"));
         handBox = new ValueBox("HAND ON THE BOLT", "the left hand while it holds the slide / pump / bolt: move it, turn it, and arc it over the gun on the way", new[] {
-            new ValueRow("z", "forward / back", "cm", -15, 15, 0.5), new ValueRow("y", "up / down", "cm", -15, 15, 0.5),
-            new ValueRow("x", "right / left", "cm", -15, 15, 0.5), new ValueRow("rx", "tilt fingers up / down", "°", -180, 180, 1),
+            // 2026-10-29 (Tefa: "move them smoothly for the weapon's length worth"): a rifle's length forward / back, not 15 cm
+            new ValueRow("z", "forward / back", "cm", -60, 100, 0.5), new ValueRow("y", "up / down", "cm", -30, 30, 0.5),
+            new ValueRow("x", "right / left", "cm", -30, 30, 0.5), new ValueRow("rx", "tilt fingers up / down", "°", -180, 180, 1),
             new ValueRow("ry", "turn left / right", "°", -180, 180, 1), new ValueRow("rz", "roll", "°", -180, 180, 1),
             new ValueRow("arc", "arc over the gun", "cm", 0, 25, 0.5) }, () => Changed(), (t, h) => Btn(t, h));
         aimBox = new ValueBox("GUN IN THE RIGHT HAND", "where the gun points and sits in the right hand", new[] {
@@ -96,7 +96,7 @@ class ZonesUi : Form {
         if (folder != null && (gameArg != null || ZoneFile.LooksLikeVillage(folder))) UseFolder(folder, gameArg == null);
 
         // start at the top with nothing focused (a focused slider made the list scroll under the top bar)
-        Shown += (s, e) => { ActiveControl = show; scroll.AutoScrollPosition = new Point(0, 0); };
+        Shown += (s, e) => { ActiveControl = partBtn; scroll.AutoScrollPosition = new Point(0, 0); };
         poll.Interval = POLL_MS; poll.Tick += (s, e) => Poll(); poll.Start();
         saveTimer.Interval = SAVE_DEBOUNCE_MS; saveTimer.Tick += (s, e) => { saveTimer.Stop(); SaveAll(); };
         nudgeTimer.Interval = 15; nudgeTimer.Tick += (s, e) => NudgeTick(); nudgeTimer.Start();
@@ -126,9 +126,6 @@ class ZonesUi : Form {
         Controls.Add(top);
         status = new SkinLabel { Dock = DockStyle.Top, Height = 34, Padding = new Padding(10, 8, 0, 0), ForeColor = Dim };
         var one = Row(42);
-        show = new SkinCheckBox { Text = "SHOW THE SPHERES ON THE GUN", AutoSize = true, ForeColor = Ink, BackColor = Color.Transparent, Padding = new Padding(4, 6, 12, 0) };
-        show.CheckedChanged += (s, e) => { if (!syncing) SaveAll(); };
-        one.Controls.Add(show);
         one.Controls.Add(Btn("GAME FOLDER...", (s, e) => PickFolder()));
         var two = Row(42);
         two.Controls.Add(new SkinLabel { Text = "the sliders set:", AutoSize = true, ForeColor = Dim, Padding = new Padding(0, 8, 6, 0) });
@@ -152,9 +149,6 @@ class ZonesUi : Form {
         top.Controls.Add(one);
         top.Controls.Add(status);
     }
-
-    // (2026-10-25, Tefa: "can you just have the one look and not be able to choose anything else?": the SPHERE LOOK button is
-    // gone; the spheres always wear "axis", the one seen drawing. Picking "no material" had crashed the game.)
 
     // 2026-10-25 (Tefa: "please remove that, i'm afraid to accidentally press it, i'll just ask you if i ever need to clear all of
     // it"): the FORGET THIS GUN'S / ALL-GUNS ZONES button is gone (a session clears zones.json by hand when asked)
@@ -317,7 +311,6 @@ class ZonesUi : Form {
         shownGun = live == null ? 0 : live.Gun;
         var all = file.Load();
         syncing = true;
-        show.Checked = ZoneFile.Show(all);
         foreach (var b in boxes) b.Load(all, Group(), live);
         try { string hp = HandFile.PathIn(file); lastHandWrite = hp != null && File.Exists(hp) ? File.GetLastWriteTime(hp) : DateTime.MinValue; } catch (IOException) { }
         var hands = HandFile.Load(file);
@@ -331,7 +324,6 @@ class ZonesUi : Form {
     void SaveAll() {
         if (file.Folder == null) return;
         var all = file.Load();   // fresh: keeps what the in-game menu or another gun's numbers hold
-        ZoneFile.SetShow(all, show.Checked);
         foreach (var b in boxes) b.Store(all, Group());
         if (aimBox.Touched) { ZoneFile.SetEntry(all, Group(), "aim", aimBox.Values()); aimBox.Touched = false; }
         try { file.Save(all); lastZonesWrite = File.GetLastWriteTime(file.ZonesPath); }

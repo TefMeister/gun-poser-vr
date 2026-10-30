@@ -88,16 +88,12 @@ static class Program {
         check(double.IsNaN(ZoneFile.Effective(all, "3042", "mag", "r")), "nothing set = the plugin's own number (NaN here)");
         ZoneFile.SetRadius(all, "default", "mag", 0.15);
         ZoneFile.SetOffset(all, "3042", "mag", 0.0, -0.02, 0.01);
-        ZoneFile.SetShow(all, true);
         f.Save(all);
 
         var back = f.Load();
         check(Math.Abs(ZoneFile.Effective(back, "3042", "mag", "r") - 0.15) < 1e-9, "a gun without its own size takes the default's");
         check(Math.Abs(ZoneFile.Effective(back, "3042", "mag", "y") + 0.02) < 1e-9, "the gun's own offset is kept");
         check(Math.Abs(ZoneFile.Effective(back, "3042", "mag", "x")) < 1e-9, "all three offset numbers are written together");
-        check(ZoneFile.Show(back), "the show switch is kept");
-        ZoneFile.SetLook(back, 7);
-        check(ZoneFile.Look(back) == 0, "the sphere look wraps round after the last one");
         ZoneFile.Forget(back, "3042", "mag");
         check(double.IsNaN(ZoneFile.Effective(back, "3042", "mag", "y")), "forget drops the gun's own numbers");
         check(Math.Abs(ZoneFile.Effective(back, "3042", "mag", "r") - 0.15) < 1e-9, "...and the default still applies");

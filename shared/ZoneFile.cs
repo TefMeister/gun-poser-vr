@@ -1,7 +1,9 @@
 // ZoneFile.cs -- the two files the Grip Zones window shares with Visceral RE8, both in the game's
 // reframework\data\visceral_re8\ folder:
 //   zones.json        WRITTEN HERE (and by the in-game menu): per gun ("3042") over "default": each zone's offset from its joint
-//                     in the gun's axes (x right, y up, z forward, metres) and its radius r (metres); "_visual": { show, half_m }.
+//                     in the gun's axes (x right, y up, z forward, metres) and its radius r (metres).
+//                     (2026-10-30: the spheres show by themselves as the left hand nears one, so the window's show switch
+//                     and sphere look are gone; the game keeps its own "_visual" block.)
 //                     The plugin (src/zones.cpp) re-reads it within a third of a second of any change.
 //   zones_state.json  READ HERE: written by lua/visceral_re8_zones.lua four times a second: the gun in hand and, per zone, its
 //                     key (mag / well / slide / pump / bolt / grip), whether it is on this gun, its size and how far the hand is from it.
@@ -103,27 +105,6 @@ class ZoneFile {
     public static void Forget(Dictionary<string, object> all, string group, string zone) {
         var g = Child(all, group, false);
         if (g != null) g.Remove(zone);
-    }
-
-    public static bool Show(Dictionary<string, object> all) {
-        var v = Child(all, "_visual", false);
-        object s;
-        return v != null && v.TryGetValue("show", out s) && s is bool && (bool)s;
-    }
-
-    // which material the spheres wear (lua/visceral_re8_zones.lua MATS, the same order): the first one that shows is not known yet
-    public static readonly string[] Looks = { "axis" };   // one look only since 2026-10-25 (the game's menu has just "axis" too)
-    public static int Look(Dictionary<string, object> all) {
-        var v = Child(all, "_visual", false);
-        object m;
-        int i = v != null && v.TryGetValue("look", out m) && m is double ? (int)(double)m : 0;
-        return i < 0 || i >= Looks.Length ? 0 : i;
-    }
-    public static void SetLook(Dictionary<string, object> all, int i) { Child(all, "_visual", true)["look"] = (double)(((i % Looks.Length) + Looks.Length) % Looks.Length); }
-
-    public static void SetShow(Dictionary<string, object> all, bool on) {
-        var v = Child(all, "_visual", true);
-        v["show"] = on;
     }
 
     // ---- zones_state.json ---------------------------------------------------------------------------------------------
