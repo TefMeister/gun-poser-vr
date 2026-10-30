@@ -53,7 +53,7 @@ static class Program {
         case "mag": return MagPistols.Contains(gun) || MagLongs.Contains(gun);
         case "well": return MagPistols.Contains(gun) || MagLongs.Contains(gun);
         case "part": return MagPistols.Contains(gun) || MagLongs.Contains(gun) || Pumps.Contains(gun);
-        case "handle": return MagPistols.Contains(gun) || Drums.Contains(gun);
+        case "handle": return Drums.Contains(gun);   // 2026-10-30: a magazine handgun's left hand holds the magazine instead
         case "slide-left": return MagPistols.Contains(gun);   // 2026-10-28: a pistol slide's left-side sphere
         case "drum": return Drums.Contains(gun);
         case "insert": return Breaks.Contains(gun);

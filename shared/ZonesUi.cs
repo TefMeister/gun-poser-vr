@@ -59,14 +59,14 @@ class ZonesUi : Form {
 
         scroll = new SkinPanel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(8) };
         Controls.Add(scroll);
-        boxes.Add(new ZoneBox(this, "mag", "START: GRAB THE MAGAZINE", "left grip on the seated magazine"));
-        boxes.Add(new ZoneBox(this, "well", "LAND: THE WELL", "where a magazine goes back in: shown on the gun while a magazine is in the left hand"));
+        boxes.Add(new ZoneBox(this, "mag", "START: GRAB THE MAGAZINE", "left grip holds the seated magazine; LT (handguns: LT held + right B) takes it out into the hand"));
+        boxes.Add(new ZoneBox(this, "well", "LAND: THE WELL", "where a magazine goes in: LG held + LT (handguns: LG + LT held and a push in)"));
         boxes.Add(new ZoneBox(this, "part", "START: SLIDE / PUMP / BOLT", "left grip in it takes it"));
         // 2026-10-28 (Tefa: "another pair is called slide left"): a pistol slide's left-side sphere, its own hold and pose
         boxes.Add(new ZoneBox(this, "slide-left", "START: SLIDE, LEFT SIDE", "left grip in it takes the slide from the left (its own hold and Hand Poser pose)"));
         boxes.Add(new ZoneBox(this, "grip", "FRONT GRIP", "left grip in it holds the gun two-handed: this gun's kept grip spot, moved by these sliders"));
         // 2026-10-27: the parts some guns have (Program.HasPart): only the gun in hand's are shown
-        boxes.Add(new ZoneBox(this, "handle", "GRIP HANDLE", "handguns: left grip in it cups the handle"));
+        boxes.Add(new ZoneBox(this, "handle", "GRIP HANDLE", "revolvers: left grip in it cups the handle"));
         boxes.Add(new ZoneBox(this, "drum", "THE DRUM", "revolvers: left grip opens it and holds the hand there; LT loads a round, LT when full closes it"));
         boxes.Add(new ZoneBox(this, "insert", "INSERT POINT", "GM 79: a grenade held with the left grip goes in here; left grip + LT takes one out (live or spent)"));
         for (int i = boxes.Count - 1; i >= 0; i--) scroll.Controls.Add(boxes[i]);   // docked top: added last = shown first
@@ -138,7 +138,7 @@ class ZonesUi : Form {
     List<Entry> Entries() {
         var r = new List<Entry>();
         string partName = partWord.ToLowerInvariant();
-        if (Has("mag")) r.Add(new Entry { Key = "mag", Label = "magazine  (where LG takes it out)", Shows = new Control[] { BoxOf("mag") } });
+        if (Has("mag")) r.Add(new Entry { Key = "mag", Label = "magazine  (LG holds it; LG + LT takes it out, handguns LT + B)", Shows = new Control[] { BoxOf("mag") } });
         if (Has("well")) r.Add(new Entry { Key = "well", Label = "the well  (where a magazine goes in)", Shows = new Control[] { BoxOf("well") } });
         if (Has("part") && Has("slide-left") && !allGuns.Checked && partName == "slide") {   // a pistol: the slide from either side
             r.Add(new Entry { Key = "part", Label = "slide, right side  (where LG takes it)", Shows = new Control[] { BoxOf("part") } });
