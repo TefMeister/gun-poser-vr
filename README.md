@@ -12,6 +12,8 @@ games as we mod them.
 Made 2026-10-28 for tuning the gun inside the headset: Window View hangs this window in VR, the same way as its sister
 apps [Grip Zones](https://github.com/TefMeister/grip-zones-vr) and [Hand Poser](https://github.com/TefMeister/hand-poser-vr).
 It writes the same numbers as Grip Zones' "the gun in the right hand" entry, so the two windows always agree.
+Ticked sliders step with the controller through Window View (X −1, Y −5, A +1, B +5). Only the helper window you clicked last answers the buttons (Hand Poser, Grip Zones, Gun Poser, Animation & Timing):
+a click anywhere in it is enough, so ticked boxes in the other windows stay still. Until one is clicked, all answer.
 
 **Still being worked on:** built and tried on a test folder (2026-10-28), not yet tried in the headset. It will be tweaked as we go.
 
