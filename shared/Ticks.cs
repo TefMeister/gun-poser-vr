@@ -16,7 +16,13 @@ static class Ticks {
     public static int Count { get { int n = 0; foreach (var t in All) if (t.Ticked) n++; return n; } }
     public static void Notify() { if (Changed != null) Changed(); }
     public static void ClearAll() { foreach (var t in All) t.Ticked = false; Notify(); }
-    public static void StepAll(int presses) { foreach (var t in All) if (t.Ticked) t.Step(presses); }
+    public static void StepAll(int presses) { StepAll(presses, null); }
+    // 2026-11-08: only the sliders in the part clicked last (Nudge.Allows), when the window says which
+    public static void StepAll(int presses, Func<Control, bool> allow) {
+        foreach (var t in All) if (t.Ticked && (allow == null || !(t is Control) || allow((Control)t))) t.Step(presses);
+    }
+    // the boxes name their parts here (a zone's box, a box of values); the window passes them to its Nudge
+    public static Action<Control, string> NameSection;
 
     // the tick box beside a slider (drawn big: SkinCheckBox with no text, Skin.cs)
     public static CheckBox Box(ITickable owner) {

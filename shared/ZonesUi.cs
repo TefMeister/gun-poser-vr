@@ -59,6 +59,7 @@ class ZonesUi : Form {
 
         scroll = new SkinPanel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(8) };
         Controls.Add(scroll);
+        Ticks.NameSection = (c, n) => nudge.Section(c, n);   // 2026-11-08: the buttons reach the zone clicked last
         boxes.Add(new ZoneBox(this, "mag", "START: GRAB THE MAGAZINE", "left grip holds the seated magazine; LT (handguns: LT held + right B) takes it out into the hand"));
         boxes.Add(new ZoneBox(this, "well", "LAND: THE WELL", "where a magazine goes in: LG held + LT (handguns: LG + LT held and a push in)"));
         boxes.Add(new ZoneBox(this, "part", "START: SLIDE / PUMP / BOLT", "left grip in it takes it"));
@@ -213,7 +214,7 @@ class ZonesUi : Form {
         bool started;
         double step = nudge.Poll(Ticks.Count > 0, out started);
         if (step == 0) return;
-        Ticks.StepAll((int)step);
+        Ticks.StepAll((int)step, nudge.Allows);
     }
 
     // ---- the game ---------------------------------------------------------------------------------------------------------
@@ -330,6 +331,7 @@ class ZonesUi : Form {
             Dock = DockStyle.Top; Height = 276; BackColor = Color.Transparent; Padding = new Padding(0, 6, 0, 6);
             var inner = new SkinPanel { Dock = DockStyle.Fill, Tint = Color.FromArgb(150, Panel2), Padding = new Padding(8, 4, 8, 4) };
             Controls.Add(inner);
+            if (Ticks.NameSection != null) Ticks.NameSection(inner, "zone:" + slot);   // 2026-11-08 (Nudge.cs)
             head = new SkinLabel { Dock = DockStyle.Top, Height = 28, Font = new Font("Segoe UI Semibold", 12f), ForeColor = Ink };
             note = new SkinLabel { Dock = DockStyle.Top, Height = 24, ForeColor = Dim, Text = what };
             fwd = new Slider(this, "forward / back", -OFFSET_MM, OFFSET_MM, true);

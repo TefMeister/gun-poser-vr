@@ -32,6 +32,7 @@ class ValueBox : Panel {
         Dock = DockStyle.Top; Height = 112 + rows.Length * 40; BackColor = Color.Transparent; Padding = new Padding(0, 6, 0, 6);
         var inner = new SkinPanel { Dock = DockStyle.Fill, Tint = Color.FromArgb(150, Panel2), Padding = new Padding(8, 4, 8, 4) };
         Controls.Add(inner);
+        if (Ticks.NameSection != null) Ticks.NameSection(inner, "values:" + title);   // 2026-11-08 (Nudge.cs)
         head = new SkinLabel { Dock = DockStyle.Top, Height = 28, Font = new Font("Segoe UI Semibold", 12f), ForeColor = Ink, Text = title };
         var note = new SkinLabel { Dock = DockStyle.Top, Height = 24, ForeColor = Dim, Text = what };
         var reset = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 40, BackColor = Color.Transparent, FlowDirection = FlowDirection.RightToLeft };

@@ -56,6 +56,7 @@ class GunPoserUi : Form {
 
         var body = new SkinPanel { Dock = DockStyle.Fill, Padding = new Padding(8) };
         Controls.Add(body);
+        Ticks.NameSection = (c, n) => nudge.Section(c, n);   // 2026-11-08: the reached part shaded dark yellow (Nudge.cs)
         aim = new ValueBox("THE GUN IN THE RIGHT HAND", "where it points and sits in the hand; the same numbers as Grip Zones' entry", new[] {
             new ValueRow("pitch", "aim up / down", "°", -45, 45, 1), new ValueRow("yaw", "aim left / right", "°", -45, 45, 1),
             new ValueRow("roll", "roll", "°", -45, 45, 1), new ValueRow("z", "forward / back", "cm", -10, 10, 0.5),
@@ -84,7 +85,7 @@ class GunPoserUi : Form {
 
         poll.Interval = POLL_MS; poll.Tick += (s, e) => Poll(); poll.Start();
         saveTimer.Interval = SAVE_DEBOUNCE_MS; saveTimer.Tick += (s, e) => { saveTimer.Stop(); Save(); };
-        nudgeTimer.Interval = 15; nudgeTimer.Tick += (s, e) => { bool started; double step = nudge.Poll(Ticks.Count > 0, out started); if (step != 0) Ticks.StepAll((int)step); };
+        nudgeTimer.Interval = 15; nudgeTimer.Tick += (s, e) => { bool started; double step = nudge.Poll(Ticks.Count > 0, out started); if (step != 0) Ticks.StepAll((int)step, nudge.Allows); };
         nudgeTimer.Start();
         Ticks.Changed += ShowNudge;
         ShowNudge();
