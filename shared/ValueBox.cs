@@ -15,7 +15,8 @@ using System.Windows.Forms;
 class ValueRow {
     public string Key, Label, Unit;
     public double Min, Max, Step;
-    public ValueRow(string key, string label, string unit, double min, double max, double step) { Key = key; Label = label; Unit = unit; Min = min; Max = max; Step = step; }
+    public bool Flip;   // 2026-11-08: the slider shows the number turned round (+ in the file sits on the slider's LEFT end); the file keeps it
+    public ValueRow(string key, string label, string unit, double min, double max, double step, bool flip = false) { Key = key; Label = label; Unit = unit; Min = min; Max = max; Step = step; Flip = flip; }
 }
 
 class ValueBox : Panel {
@@ -65,7 +66,7 @@ class ValueBox : Panel {
         bool setting;
         public bool Ticked { get { return tick.Checked; } set { tick.Checked = value; } }
         public void Step(int presses) { Nudge(presses); }
-        public double Value { get { return bar.Value / (double)TENTHS; } }
+        public double Value { get { return (def.Flip ? -1 : 1) * bar.Value / (double)TENTHS; } }   // the file's number
 
         public Row(ValueBox box, ValueRow def, Func<string, EventHandler, Button> btn) {
             this.box = box; this.def = def;
@@ -77,7 +78,7 @@ class ValueBox : Panel {
             minus.Font = plus.Font = new Font("Segoe UI Semibold", 13f);
             var gap = new Panel { Dock = DockStyle.Right, Width = 4, BackColor = Color.Transparent };
             bar = new FancySlider { Dock = DockStyle.Fill, Minimum = (int)(def.Min * TENTHS), Maximum = (int)(def.Max * TENTHS), SmallChange = 1, LargeChange = 10, Signed = def.Min < 0 };
-            if (def.Unit != "°") bar.EndsFrom(def.Label);
+            bar.EndsFrom(def.Label);
             bar.ValueChanged += (s, e) => { ShowValue(); if (!setting) { box.Touched = true; box.changed(); } };
             Controls.Add(bar); Controls.Add(minus); Controls.Add(gap); Controls.Add(plus); Controls.Add(value); Controls.Add(name);
             tick = Ticks.Box(this); Controls.Add(tick); Ticks.All.Add(this);
@@ -86,12 +87,12 @@ class ValueBox : Panel {
         void Nudge(int dir) { bar.Value = Math.Max(bar.Minimum, Math.Min(bar.Maximum, bar.Value + dir * (int)Math.Round(def.Step * TENTHS))); }
         public void Set(double v, bool tell) {
             setting = !tell;
-            bar.Value = Math.Max(bar.Minimum, Math.Min(bar.Maximum, (int)Math.Round(v * TENTHS)));
+            bar.Value = Math.Max(bar.Minimum, Math.Min(bar.Maximum, (int)Math.Round((def.Flip ? -v : v) * TENTHS)));
             setting = false;
             ShowValue();
         }
         void ShowValue() {
-            double v = Value;
+            double v = bar.Value / (double)TENTHS;   // as the slider stands
             value.Text = (def.Min < 0 && v > 0 ? "+" : "") + v.ToString("0.0") + " " + def.Unit;
         }
     }

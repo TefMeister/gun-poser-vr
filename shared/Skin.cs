@@ -225,13 +225,14 @@ class FancySlider : Control {
     public void EndsFrom(string label) {
         string l = (label ?? "").ToLowerInvariant();
         if (l.Contains("size")) { LeftText = "SMALLER"; RightText = "BIGGER"; Invalidate(); return; }
-        if (l.Contains("tilt") || l.Contains("turn") || l.Contains("roll") || l.Contains("aim")) return;
+        // 2026-11-08 (Tefa: left end = down / in / left / turn left): the labels name the LEFT end first now ("left / right",
+        // "down / up", "back / forward", "aim left / right"), the turns too
         int slash = l.IndexOf('/');
         if (slash < 0) return;
         string a = l.Substring(0, slash).Trim(), b = l.Substring(slash + 1).Trim();
         a = a.Substring(a.LastIndexOf(' ') + 1); int sp = b.IndexOf(' '); if (sp > 0) b = b.Substring(0, sp);
         if (a == "" || b == "") return;
-        LeftText = b.ToUpperInvariant(); RightText = a.ToUpperInvariant(); Invalidate();
+        LeftText = a.ToUpperInvariant(); RightText = b.ToUpperInvariant(); Invalidate();
     }
 
     public static readonly Color TrackBack = Color.FromArgb(18, 20, 27), TrackEdge = Color.FromArgb(78, 84, 106);

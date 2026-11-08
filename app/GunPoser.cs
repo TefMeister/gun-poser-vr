@@ -58,9 +58,11 @@ class GunPoserUi : Form {
         Controls.Add(body);
         Ticks.NameSection = (c, n) => nudge.Section(c, n);   // 2026-11-08: the reached part shaded dark yellow (Nudge.cs)
         aim = new ValueBox("THE GUN IN THE RIGHT HAND", "where it points and sits in the hand; the same numbers as Grip Zones' entry", new[] {
-            new ValueRow("pitch", "aim up / down", "°", -45, 45, 1), new ValueRow("yaw", "aim left / right", "°", -45, 45, 1),
-            new ValueRow("roll", "roll", "°", -45, 45, 1), new ValueRow("z", "forward / back", "cm", -10, 10, 0.5),
-            new ValueRow("y", "up / down", "cm", -10, 10, 0.5), new ValueRow("x", "right / left", "cm", -10, 10, 0.5) },
+            // 2026-11-08 (Tefa: left end = down / left / turn left): in the controller's axes (lua/visceral_re8_zones.lua) + yaw turns
+            // the gun LEFT and + roll rolls it LEFT, so those two show their number turned round; pitch, x, y, z already went the right way
+            new ValueRow("pitch", "aim down / up", "°", -45, 45, 1), new ValueRow("yaw", "aim left / right", "°", -45, 45, 1, true),
+            new ValueRow("roll", "roll left / right", "°", -45, 45, 1, true), new ValueRow("z", "back / forward", "cm", -10, 10, 0.5),
+            new ValueRow("y", "down / up", "cm", -10, 10, 0.5), new ValueRow("x", "left / right", "cm", -10, 10, 0.5) },
             () => { if (!syncing) { saveTimer.Stop(); saveTimer.Start(); } }, (t, h) => ZonesUi.Btn(t, h));
         body.Controls.Add(aim);
 

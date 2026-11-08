@@ -334,9 +334,11 @@ class ZonesUi : Form {
             if (Ticks.NameSection != null) Ticks.NameSection(inner, "zone:" + slot);   // 2026-11-08 (Nudge.cs)
             head = new SkinLabel { Dock = DockStyle.Top, Height = 28, Font = new Font("Segoe UI Semibold", 12f), ForeColor = Ink };
             note = new SkinLabel { Dock = DockStyle.Top, Height = 24, ForeColor = Dim, Text = what };
-            fwd = new Slider(this, "forward / back", -OFFSET_MM, OFFSET_MM, true);
-            up = new Slider(this, "up / down", -OFFSET_MM, OFFSET_MM, true);
-            right = new Slider(this, "right / left", -OFFSET_MM, OFFSET_MM, true);
+            // 2026-11-08 (Tefa: "some of the sliders read left and right on them, but actually move the hand the opposite way"):
+            // measured in Village, the gun's +x points LEFT, so the right / left slider shows x turned round; the file keeps x
+            fwd = new Slider(this, "back / forward", -OFFSET_MM, OFFSET_MM, true);
+            up = new Slider(this, "down / up", -OFFSET_MM, OFFSET_MM, true);
+            right = new Slider(this, "left / right", -OFFSET_MM, OFFSET_MM, true);
             size = new Slider(this, "size", SIZE_MIN_MM, SIZE_MAX_MM, false);
             var reset = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 40, BackColor = Color.Transparent, FlowDirection = FlowDirection.RightToLeft };
             reset.Controls.Add(Btn("RESET", (s, e) => ui.Forget(key)));
@@ -348,7 +350,7 @@ class ZonesUi : Form {
         public void Load(Dictionary<string, object> all, string group, LiveState live) {
             if (slot == "part") { var lz = PartLive(live); key = lz != null ? lz.Key : key; }
             Func<string, double> mm = a => { double v = ZoneFile.Effective(all, group, key, a); return double.IsNaN(v) ? 0 : v * 1000; };
-            fwd.Set(mm("z")); up.Set(mm("y")); right.Set(mm("x"));
+            fwd.Set(mm("z")); up.Set(mm("y")); right.Set(-mm("x"));
             double r = ZoneFile.Effective(all, group, key, "r");
             userSize = !double.IsNaN(r);
             if (userSize) size.Set(r * 1000);
@@ -356,7 +358,7 @@ class ZonesUi : Form {
         }
 
         public void Store(Dictionary<string, object> all, string group) {
-            if (fwd.Touched || up.Touched || right.Touched) ZoneFile.SetOffset(all, group, key, right.Value / 1000.0, up.Value / 1000.0, fwd.Value / 1000.0);
+            if (fwd.Touched || up.Touched || right.Touched) ZoneFile.SetOffset(all, group, key, -right.Value / 1000.0, up.Value / 1000.0, fwd.Value / 1000.0);
             if (size.Touched || userSize) { ZoneFile.SetRadius(all, group, key, size.Value / 1000.0); userSize = true; }
             fwd.Touched = up.Touched = right.Touched = size.Touched = false;
         }
