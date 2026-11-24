@@ -12,9 +12,8 @@ using System.Windows.Forms;
 partial class ZonesUi : Form {
     const int POLL_MS = 250, SAVE_DEBOUNCE_MS = 60, FIND_GAME_EVERY_MS = 5000;
     const int OFFSET_MM = 300, SIZE_MIN_MM = 20, SIZE_MAX_MM = 400, NUDGE_MM = 5;
-    static readonly Color Back = Color.FromArgb(28, 30, 38), Panel2 = Color.FromArgb(40, 43, 55), Ink = Color.FromArgb(235, 235, 240);
-    static readonly Color Dim = Color.FromArgb(155, 160, 175), Good = Color.FromArgb(90, 200, 120), Bad = Color.FromArgb(225, 120, 95);
-    static readonly Color Warn = Color.FromArgb(230, 190, 90), ButtonBack = Color.FromArgb(62, 67, 86);
+    static readonly Color Back = Look.Back, Panel2 = Look.Panel2, Ink = Look.Ink;   // 2026-11-25: the kit's colours (Skin.cs Look)
+    static readonly Color Dim = Look.Dim, Good = Look.Good, Bad = Look.Bad, Warn = Look.Warn, ButtonBack = Look.ButtonBack;
 
     readonly Settings settings = new Settings();
     readonly ZoneFile file = new ZoneFile();
@@ -125,6 +124,8 @@ partial class ZonesUi : Form {
         AddUndoButtons(three);
         nudgeNote = new SkinLabel { AutoSize = true, ForeColor = Dim, Padding = new Padding(4, 8, 0, 0) };
         three.Controls.Add(nudgeNote);
+        // 2026-11-25 (Tefa: "place things into sections"): every row a section with its tick (NudgeNav.cs SectionTick)
+        nudge.SectionTick(one, "top:game"); nudge.SectionTick(two, "top:set"); nudge.SectionTick(three, "top:ticks");
         top.Controls.Add(three);
         top.Controls.Add(two);
         top.Controls.Add(one);
@@ -212,8 +213,7 @@ partial class ZonesUi : Form {
         // 2026-11-24 (Hand Poser's scheme, NudgeNav.cs / SliderUndo.cs): LT a section, the left stick a slider, the right stick tunes
         int n = Ticks.Count;
         string t = n > 0 ? n + " ticked · " : "";
-        nudgeNote.Text = !nudge.Linked ? t + "start Window View, click the left stick in: LT section, LS slider, RS tune, A tick, X undo"
-            : t + "LT section · LS slider · RS tune · A tick · B untick · X undo · Y redo";
+        nudgeNote.Text = (!nudge.Linked ? t + Nudge.HELP_OFF : t) + Nudge.HELP;   // 2026-11-25: the kit's words
         nudgeNote.ForeColor = nudge.Linked ? Good : Dim;
     }
     void NudgeTick() {

@@ -21,7 +21,7 @@ class ValueRow {
 
 class ValueBox : Panel {
     const int TENTHS = 10;   // the sliders count tenths of a centimetre / degree
-    static readonly Color Panel2 = Color.FromArgb(40, 43, 55), Ink = Color.FromArgb(235, 235, 240), Dim = Color.FromArgb(155, 160, 175);
+    static readonly Color Panel2 = Look.Panel2, Ink = Look.Ink, Dim = Look.Dim;   // 2026-11-25: the kit's colours (Skin.cs Look)
     readonly Action changed;
     readonly ValueRow[] rows;
     readonly Dictionary<string, Row> sliders = new Dictionary<string, Row>();

@@ -5,8 +5,12 @@ rem Then install.ps1 puts the icon on the desktop. The game half is Visceral RE8
 setlocal
 set HERE=%~dp0
 if not exist "%HERE%dist" mkdir "%HERE%dist"
+rem 2026-11-25: the shared kit (look, controller buttons, the left stick) is copied from hand-poser-vr\kit; with hand-poser-vr
+rem beside this one, a drifted copy stops the build (python tools\sync_kit.py there brings it in step)
+set KITCHECK=%HERE%..\hand-poser-vr\tools\sync_kit.py
+if exist "%KITCHECK%" (python "%KITCHECK%" --check || (echo KIT OUT OF STEP & exit /b 1))
 "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:winexe /optimize+ /win32icon:"%HERE%app\gun_poser.ico" ^
-   /main:GunPoserProgram /out:"%HERE%dist\GunPoser.exe" "%HERE%app\*.cs" "%HERE%shared\*.cs"
+   /main:GunPoserProgram /out:"%HERE%dist\GunPoser.exe" "%HERE%app\*.cs" "%HERE%kit\*.cs" "%HERE%shared\*.cs"
 if errorlevel 1 (echo BUILD FAILED & exit /b 1)
 copy /y "%HERE%app\gun_poser.ico" "%HERE%dist\" >nul
 echo BUILD OK: %HERE%dist

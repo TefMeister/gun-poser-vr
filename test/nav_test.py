@@ -147,6 +147,17 @@ def main():
         put_f(wv, SQUEEZE_R, 0.0)
         check("a grip held: no button or stick moves a slider", zone("pitch") == 1.0 and zone("yaw") == -1.0, "yaw=%s pitch=%s" % (zone("yaw"), zone("pitch")))
         grab("4-end.png")
+
+        # 2026-11-25: the left stick reaches buttons too: LT on the ticks row, LS right to the window's undo, A presses it
+        kids = children(hwnd)
+        clear = [h for h, t in kids if t == "CLEAR ALL TICKS"]
+        post_click(head[0], middle=True)       # LT: the first section unticked again
+        if clear:
+            post_click(clear[0], middle=True)  # LT: the ticks row ticked, its first stop (CLEAR ALL TICKS) selected
+        pulse(wv, LSTICK_X, 1.0)               # LS right: the undo button
+        pulse(wv, BUTTONS, B_A, as_int=True)   # A: pressed
+        grab("5-undo-button.png")
+        check("LS reaches the undo button and A presses it", bool(clear) and zone("pitch") == 0.0, "pitch=%s" % zone("pitch"))
     finally:
         h = user32.FindWindowW(None, TITLE)
         if h:

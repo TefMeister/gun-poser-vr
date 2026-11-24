@@ -28,8 +28,8 @@ static class GunPoserProgram {
 
 class GunPoserUi : Form {
     const int POLL_MS = 250, SAVE_DEBOUNCE_MS = 120, FIND_GAME_EVERY_MS = 5000;
-    static readonly Color Back = Color.FromArgb(28, 30, 38), Ink = Color.FromArgb(235, 235, 240), Dim = Color.FromArgb(155, 160, 175);
-    static readonly Color Good = Color.FromArgb(90, 200, 120), Warn = Color.FromArgb(230, 190, 90), Bad = Color.FromArgb(225, 120, 95);
+    static readonly Color Back = Look.Back, Ink = Look.Ink, Dim = Look.Dim;   // 2026-11-25: the kit's colours (Skin.cs Look)
+    static readonly Color Good = Look.Good, Warn = Look.Warn, Bad = Look.Bad;
 
     readonly Settings settings = new Settings();   // the same game folder as Grip Zones
     readonly ZoneFile file = new ZoneFile();
@@ -86,6 +86,7 @@ class GunPoserUi : Form {
         row.Controls.Add(allGuns);
         which = new SkinLabel { Dock = DockStyle.Top, Height = 40, Font = new Font("Segoe UI Semibold", 13f), ForeColor = Ink, Padding = new Padding(10, 8, 0, 0) };
         status = new SkinLabel { Dock = DockStyle.Top, Height = 34, ForeColor = Dim, Padding = new Padding(10, 8, 0, 0) };
+        nudge.SectionTick(row, "top:ticks");   // 2026-11-25: every row a section with its tick (NudgeNav.cs SectionTick)
         top.Controls.Add(nudgeNote);
         top.Controls.Add(row);
         top.Controls.Add(which);
@@ -111,8 +112,7 @@ class GunPoserUi : Form {
         // 2026-11-24 (Hand Poser's scheme, NudgeNav.cs / SliderUndo.cs): LT a section, the left stick a slider, the right stick tunes
         int n = Ticks.Count;
         string t = n > 0 ? n + " ticked · " : "";
-        nudgeNote.Text = !nudge.Linked ? t + "start Window View, click the left stick in: LT section, LS slider, RS tune, A tick, X undo"
-            : t + "LT section · LS slider · RS tune · A tick · B untick · X undo · Y redo";
+        nudgeNote.Text = (!nudge.Linked ? t + Nudge.HELP_OFF : t) + Nudge.HELP;   // 2026-11-25: the kit's words
         nudgeNote.ForeColor = nudge.Linked ? Good : Dim;
     }
     void NudgeTick() {

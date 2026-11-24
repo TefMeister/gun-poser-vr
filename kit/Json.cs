@@ -1,5 +1,8 @@
-// Json.cs -- copied from Hand Poser (github.com/TefMeister/hand-poser-vr, app/Json.cs): the little JSON the window and the game exchange,
-// read and written without any library: objects become Dictionary<string, object>, arrays List<object>, numbers double, plus string, bool and null.
+// KIT FILE -- the one copy lives in hand-poser-vr/kit/; edit it THERE, then run `python tools/sync_kit.py` (it copies the kit into
+// Grip Zones, Holster Zones, Gun Poser and Animation & Timing, and `--check` fails when a copy has drifted).
+//
+// Json.cs -- the little JSON a helper window and its game script exchange, read and written without any library: objects
+// become Dictionary<string, object>, arrays List<object>, numbers double, plus string, bool and null.
 using System;
 using System.Collections.Generic;
 using System.Globalization;
