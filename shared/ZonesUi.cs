@@ -9,7 +9,7 @@ using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
 
-class ZonesUi : Form {
+partial class ZonesUi : Form {
     const int POLL_MS = 250, SAVE_DEBOUNCE_MS = 60, FIND_GAME_EVERY_MS = 5000;
     const int OFFSET_MM = 300, SIZE_MIN_MM = 20, SIZE_MAX_MM = 400, NUDGE_MM = 5;
     static readonly Color Back = Color.FromArgb(28, 30, 38), Panel2 = Color.FromArgb(40, 43, 55), Ink = Color.FromArgb(235, 235, 240);
@@ -49,7 +49,7 @@ class ZonesUi : Form {
         Text = "Grip Zones";
         BackColor = Back; ForeColor = Ink;
         Font = new Font("Segoe UI", 11f);
-        ClientSize = new Size(620, 1010);
+        ClientSize = new Size(760, 1010);   // 2026-11-14: wider for the bigger slider names
         MinimumSize = new Size(520, 600);
         StartPosition = FormStartPosition.CenterScreen;
         string ico = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "grip_zones.ico");
@@ -60,6 +60,8 @@ class ZonesUi : Form {
         scroll = new SkinPanel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(8) };
         Controls.Add(scroll);
         Ticks.NameSection = (c, n) => nudge.Section(c, n);   // 2026-11-08: the buttons reach the zone clicked last
+        nudge.Navigate = true;   // 2026-11-24: Hand Poser's scheme: LT section, LS slider, RS tune, A tick, B untick, X undo, Y redo (NudgeNav.cs)
+        nudge.UndoContext = () => Group() + "|" + entryKey;   // the one undo forgets its steps when the gun or the open part changes
         boxes.Add(new ZoneBox(this, "mag", "START: GRAB THE MAGAZINE", "left grip holds the seated magazine; LT (handguns: LT held + right B) takes it out into the hand"));
         boxes.Add(new ZoneBox(this, "well", "LAND: THE WELL", "where a magazine goes in: LG held + LT (handguns: LG + LT held and a push in)"));
         boxes.Add(new ZoneBox(this, "part", "START: SLIDE / PUMP / BOLT", "left grip in it takes it"));
@@ -120,6 +122,7 @@ class ZonesUi : Form {
         two.Controls.Add(thisGun); two.Controls.Add(allGuns);
         var three = Row(42);   // 2026-10-27: the ticked sliders and the controller buttons
         three.Controls.Add(Btn("CLEAR ALL TICKS", (s, e) => Ticks.ClearAll()));
+        AddUndoButtons(three);
         nudgeNote = new SkinLabel { AutoSize = true, ForeColor = Dim, Padding = new Padding(4, 8, 0, 0) };
         three.Controls.Add(nudgeNote);
         top.Controls.Add(three);
@@ -140,7 +143,8 @@ class ZonesUi : Form {
         var r = new List<Entry>();
         string partName = partWord.ToLowerInvariant();
         if (Has("mag")) r.Add(new Entry { Key = "mag", Label = "magazine  (LG holds it; LG + LT takes it out, handguns LT + B)", Shows = new Control[] { BoxOf("mag") } });
-        if (Has("well")) r.Add(new Entry { Key = "well", Label = "the well  (where a magazine goes in)", Shows = new Control[] { BoxOf("well") } });
+        bool shellPort = !allGuns.Checked && live != null && Program.IsPump(live.Gun);
+        if (Has("well")) r.Add(new Entry { Key = "well", Label = shellPort ? "the shell port  (where a shell goes in)" : "the well  (where a magazine goes in)", Shows = new Control[] { BoxOf("well") } });
         if (Has("part") && Has("slide-left") && !allGuns.Checked && partName == "slide") {   // a pistol: the slide from either side
             r.Add(new Entry { Key = "part", Label = "slide, right side  (where LG takes it)", Shows = new Control[] { BoxOf("part") } });
             r.Add(new Entry { Key = "slide-left", Label = "slide, left side  (where LG takes it)", Shows = new Control[] { BoxOf("slide-left") } });
@@ -205,16 +209,35 @@ class ZonesUi : Form {
     // ---- the controller nudge (Nudge.cs, the same buttons as Hand Poser) -------------------------------------------------
     void ShowNudge() {
         if (nudgeNote == null) return;
+        // 2026-11-24 (Hand Poser's scheme, NudgeNav.cs / SliderUndo.cs): LT a section, the left stick a slider, the right stick tunes
         int n = Ticks.Count;
-        nudgeNote.Text = n == 0 ? "tick sliders: X -1, Y -5, A +1, B +5" : !nudge.Linked ? n + " ticked: start Window View, click the left stick in"
-            : n + " ticked: X -1, Y -5, A +1, B +5 (a held grip repeats)";
-        nudgeNote.ForeColor = n > 0 && nudge.Linked ? Good : Dim;
+        string t = n > 0 ? n + " ticked · " : "";
+        nudgeNote.Text = !nudge.Linked ? t + "start Window View, click the left stick in: LT section, LS slider, RS tune, A tick, X undo"
+            : t + "LT section · LS slider · RS tune · A tick · B untick · X undo · Y redo";
+        nudgeNote.ForeColor = nudge.Linked ? Good : Dim;
     }
     void NudgeTick() {
         bool started;
-        double step = nudge.Poll(Ticks.Count > 0, out started);
+        double step = nudge.Poll(Ticks.Count > 0 || nudge.PickedKey != null, out started);   // 2026-11-24: or the slider the left stick selected
+        ShowUndo();
         if (step == 0) return;
-        Ticks.StepAll((int)step, nudge.Allows);
+        var use = nudge.Filter(Ticks.TickedKeys());   // the ticked sliders of the ticked sections, else the selected one
+        if (started) nudge.BeginUndo(use);            // the last slider(s) used, for the one undo (X, ↶)
+        Ticks.StepKeys((int)step, use);
+    }
+    // 2026-11-24: the window's one undo / redo, on the last slider used (SliderUndo.cs); X / Y on the controller do the same
+    Button undoAll, redoAll;
+    void ShowUndo() {
+        if (undoAll == null) return;
+        bool u = nudge.CanUndo, r = nudge.CanRedo;
+        if (undoAll.Enabled != u) undoAll.Enabled = u;
+        if (redoAll.Enabled != r) redoAll.Enabled = r;
+    }
+    void AddUndoButtons(Control row) {
+        undoAll = Btn("↶", (s, e) => { nudge.UndoLast(false); ShowUndo(); }, 40);
+        redoAll = Btn("↷", (s, e) => { nudge.UndoLast(true); ShowUndo(); }, 40);
+        undoAll.Enabled = redoAll.Enabled = false;
+        row.Controls.Add(undoAll); row.Controls.Add(redoAll);
     }
 
     // ---- the game ---------------------------------------------------------------------------------------------------------
@@ -256,7 +279,7 @@ class ZonesUi : Form {
             status.Text = "connected · no gun in hand: the sliders set ALL GUNS";
             status.ForeColor = Good;
         } else {
-            status.Text = "connected · in hand: " + Program.GunName(live.Gun) + (allGuns.Checked ? " · setting ALL GUNS" : " · setting this gun");
+            status.Text = "connected · in hand: " + Program.GunName(live.Gun) + (allGuns.Checked ? " · setting ALL GUNS" : " · setting this gun") + SpotLine.Read(file.Folder);   // 2026-11-24: the hands' spot numbers (Hand Poser)
             status.ForeColor = Good;
         }
         // the gun changed, or the in-game menu saved: show the numbers now in force (never while a save of ours is pending)
@@ -270,6 +293,7 @@ class ZonesUi : Form {
         foreach (var b in boxes) b.ShowLive(live);
         ShowPart();
         WriteOpen(false);
+        RemotePoll();   // 2026-11-23 (Remote.cs): a zone set from outside, as if the sliders had moved
     }
 
     void RefreshFromFile() {
@@ -323,6 +347,7 @@ class ZonesUi : Form {
         public string Slot { get { return slot; } }
         string key;
         readonly Label head, note;
+        readonly string wellNote;
         readonly Slider fwd, up, right, size;
         bool userSize;   // the size was set (this gun or the default); otherwise it shows the plugin's own
 
@@ -331,9 +356,10 @@ class ZonesUi : Form {
             Dock = DockStyle.Top; Height = 276; BackColor = Color.Transparent; Padding = new Padding(0, 6, 0, 6);
             var inner = new SkinPanel { Dock = DockStyle.Fill, Tint = Color.FromArgb(150, Panel2), Padding = new Padding(8, 4, 8, 4) };
             Controls.Add(inner);
-            if (Ticks.NameSection != null) Ticks.NameSection(inner, "zone:" + slot);   // 2026-11-08 (Nudge.cs)
             head = new SkinLabel { Dock = DockStyle.Top, Height = 28, Font = new Font("Segoe UI Semibold", 12f), ForeColor = Ink };
+            Ticks.Section(inner, head, "zone:" + slot);   // 2026-11-08 (Nudge.cs); 2026-11-24: its section tick in the head
             note = new SkinLabel { Dock = DockStyle.Top, Height = 24, ForeColor = Dim, Text = what };
+            wellNote = what;
             // 2026-11-08 (Tefa: "some of the sliders read left and right on them, but actually move the hand the opposite way"):
             // measured in Village, the gun's +x points LEFT, so the right / left slider shows x turned round; the file keeps x
             fwd = new Slider(this, "back / forward", -OFFSET_MM, OFFSET_MM, true);
@@ -373,6 +399,11 @@ class ZonesUi : Form {
         public void ShowLive(LiveState live) {
             var z = Live(live);
             string name = slot == "part" ? title.Replace("SLIDE / PUMP / BOLT", key.ToUpperInvariant()) : title;
+            if (slot == "well") {   // 2026-10-31: on a pump shotgun the well is where a shell goes in
+                bool port = live != null && Program.IsPump(live.Gun);
+                if (port) name = "LAND: THE SHELL PORT";
+                note.Text = port ? "where a shell goes in: the round in the left hand (LG) brought inside it" : wellNote;
+            }
             if (z == null || !z.On) {
                 head.Text = name + (live == null ? "" : "  ·  not on this gun right now");
                 head.ForeColor = Dim;
@@ -407,7 +438,8 @@ class ZonesUi : Form {
         public Slider(ZoneBox box, string label, int min, int max, bool signed) {
             this.box = box; this.signed = signed;
             Dock = DockStyle.Top; Height = 40; BackColor = Color.Transparent;
-            var name = new SkinLabel { Text = label, Dock = DockStyle.Left, Width = 128, ForeColor = Dim, Padding = new Padding(0, 8, 0, 0) };
+            // 2026-11-14 (Tefa: "make the forward/backward, right/left headlines bigger"): bigger, brighter slider names
+            var name = new SkinLabel { Text = label, Dock = DockStyle.Left, Width = 190, ForeColor = Ink, Font = new Font("Segoe UI Semibold", 12.5f), Padding = new Padding(0, 7, 0, 0) };
             value = new SkinLabel { Dock = DockStyle.Right, Width = 82, ForeColor = Ink, TextAlign = ContentAlignment.MiddleRight };
             var minus = Btn("−", (s, e) => Nudge(-NUDGE_MM), 40); minus.Dock = DockStyle.Right;
             var plus = Btn("+", (s, e) => Nudge(NUDGE_MM), 40); plus.Dock = DockStyle.Right;

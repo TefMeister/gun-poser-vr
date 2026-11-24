@@ -13,7 +13,7 @@ using System.Linq;
 using System.Windows.Forms;
 
 static class Program {
-    public static readonly string AppData = SettingsFolder();
+    public static string AppData = SettingsFolder();   // 2026-11-24: --data <folder> points it elsewhere (the tests, never the real settings)
 
     // called Grip Zones until 2026-10-27 (Tefa: "can you change the name to grip zones"): the old settings come along once
     static string SettingsFolder() {
@@ -49,9 +49,11 @@ static class Program {
     static readonly HashSet<int> Breaks = new HashSet<int> { 3023 };
     public static bool HasPart(int gun, string key) {
         switch (key) {
+        // 2026-10-31 (Tefa: "no shell insertion activation zone at all"): a pump shotgun's shell port is the "well" zone.
+        // 2026-11-01: no front grip on pump shotguns (their front handle is the pump; the extra one "does nothing", Tefa)
         case "grip": return MagLongs.Contains(gun) || Breaks.Contains(gun);
         case "mag": return MagPistols.Contains(gun) || MagLongs.Contains(gun);
-        case "well": return MagPistols.Contains(gun) || MagLongs.Contains(gun);
+        case "well": return MagPistols.Contains(gun) || MagLongs.Contains(gun) || Pumps.Contains(gun);
         case "part": return MagPistols.Contains(gun) || MagLongs.Contains(gun) || Pumps.Contains(gun);
         case "handle": return Drums.Contains(gun);   // 2026-10-30: a magazine handgun's left hand holds the magazine instead
         case "slide-left": return MagPistols.Contains(gun);   // 2026-10-28: a pistol slide's left-side sphere
@@ -60,6 +62,7 @@ static class Program {
         default: return true;
         }
     }
+    public static bool IsPump(int gun) { return Pumps.Contains(gun); }   // its "well" is the shell port
     public static string GunName(int n) { string s; return Guns.TryGetValue(n, out s) ? s : ("gun " + n); }
 
     [STAThread]
@@ -67,6 +70,7 @@ static class Program {
         string gameArg = null;
         for (int i = 0; i < args.Length; i++) {
             if (args[i] == "--game" && i + 1 < args.Length) gameArg = args[++i];
+            else if (args[i] == "--data" && i + 1 < args.Length) AppData = args[++i];
             else if (args[i] == "--selftest" && i + 1 < args.Length) return SelfTest(args[++i]) ? 0 : 1;
         }
         Application.EnableVisualStyles();

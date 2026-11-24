@@ -15,7 +15,10 @@ static class GunPoserProgram {
     [STAThread]
     static int Main(string[] args) {
         string gameArg = null;
-        for (int i = 0; i < args.Length; i++) if (args[i] == "--game" && i + 1 < args.Length) gameArg = args[++i];
+        for (int i = 0; i < args.Length; i++) {
+            if (args[i] == "--game" && i + 1 < args.Length) gameArg = args[++i];
+            else if (args[i] == "--data" && i + 1 < args.Length) Program.AppData = args[++i];   // 2026-11-24: the tests, never the real settings
+        }
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         Application.Run(new GunPoserUi(gameArg));
@@ -46,7 +49,7 @@ class GunPoserUi : Form {
         Text = "Gun Poser";
         BackColor = Back; ForeColor = Ink;
         Font = new Font("Segoe UI", 11f);
-        ClientSize = new Size(620, 570);
+        ClientSize = new Size(700, 570);   // 2026-11-24: wider, for the undo pair beside CLEAR ALL TICKS
         MinimumSize = new Size(520, 500);
         StartPosition = FormStartPosition.CenterScreen;
         string ico = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "grip_zones.ico");
@@ -57,6 +60,8 @@ class GunPoserUi : Form {
         var body = new SkinPanel { Dock = DockStyle.Fill, Padding = new Padding(8) };
         Controls.Add(body);
         Ticks.NameSection = (c, n) => nudge.Section(c, n);   // 2026-11-08: the reached part shaded dark yellow (Nudge.cs)
+        nudge.Navigate = true;   // 2026-11-24: Hand Poser's scheme: LT section, LS slider, RS tune, A tick, B untick, X undo, Y redo (NudgeNav.cs)
+        nudge.UndoContext = () => Group();   // the one undo forgets its steps when the gun changes
         aim = new ValueBox("THE GUN IN THE RIGHT HAND", "where it points and sits in the hand; the same numbers as Grip Zones' entry", new[] {
             // 2026-11-08 (Tefa: left end = down / left / turn left): in the controller's axes (lua/visceral_re8_zones.lua) + yaw turns
             // the gun LEFT and + roll rolls it LEFT, so those two show their number turned round; pitch, x, y, z already went the right way
@@ -71,6 +76,11 @@ class GunPoserUi : Form {
         nudgeNote = new SkinLabel { Dock = DockStyle.Top, Height = 30, ForeColor = Dim, Padding = new Padding(10, 4, 0, 0) };
         var row = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 42, BackColor = Color.Transparent, Padding = new Padding(6, 2, 6, 0) };
         row.Controls.Add(ZonesUi.Btn("CLEAR ALL TICKS", (s, e) => Ticks.ClearAll()));
+        // 2026-11-24: the window's one undo / redo, on the last slider used (SliderUndo.cs); X / Y on the controller do the same
+        undoAll = ZonesUi.Btn("↶", (s, e) => { nudge.UndoLast(false); ShowUndo(); }, 40);
+        redoAll = ZonesUi.Btn("↷", (s, e) => { nudge.UndoLast(true); ShowUndo(); }, 40);
+        undoAll.Enabled = redoAll.Enabled = false;
+        row.Controls.Add(undoAll); row.Controls.Add(redoAll);
         allGuns = new SkinCheckBox { Text = "ALL GUNS (the numbers every gun starts from)", AutoSize = true, ForeColor = Ink, Padding = new Padding(8, 8, 0, 0) };
         allGuns.CheckedChanged += (s, e) => { loadedGroup = ""; Poll(); };
         row.Controls.Add(allGuns);
@@ -87,7 +97,7 @@ class GunPoserUi : Form {
 
         poll.Interval = POLL_MS; poll.Tick += (s, e) => Poll(); poll.Start();
         saveTimer.Interval = SAVE_DEBOUNCE_MS; saveTimer.Tick += (s, e) => { saveTimer.Stop(); Save(); };
-        nudgeTimer.Interval = 15; nudgeTimer.Tick += (s, e) => { bool started; double step = nudge.Poll(Ticks.Count > 0, out started); if (step != 0) Ticks.StepAll((int)step, nudge.Allows); };
+        nudgeTimer.Interval = 15; nudgeTimer.Tick += (s, e) => NudgeTick();
         nudgeTimer.Start();
         Ticks.Changed += ShowNudge;
         ShowNudge();
@@ -98,10 +108,28 @@ class GunPoserUi : Form {
     protected override CreateParams CreateParams { get { return Backdrop.Composited(base.CreateParams); } }
 
     void ShowNudge() {
+        // 2026-11-24 (Hand Poser's scheme, NudgeNav.cs / SliderUndo.cs): LT a section, the left stick a slider, the right stick tunes
         int n = Ticks.Count;
-        nudgeNote.Text = n == 0 ? "tick sliders: X -1, Y -5, A +1, B +5" : !nudge.Linked ? n + " ticked: start Window View, click the left stick in"
-            : n + " ticked: X -1, Y -5, A +1, B +5 (a held grip repeats)";
-        nudgeNote.ForeColor = n > 0 && nudge.Linked ? Good : Dim;
+        string t = n > 0 ? n + " ticked · " : "";
+        nudgeNote.Text = !nudge.Linked ? t + "start Window View, click the left stick in: LT section, LS slider, RS tune, A tick, X undo"
+            : t + "LT section · LS slider · RS tune · A tick · B untick · X undo · Y redo";
+        nudgeNote.ForeColor = nudge.Linked ? Good : Dim;
+    }
+    void NudgeTick() {
+        bool started;
+        double step = nudge.Poll(Ticks.Count > 0 || nudge.PickedKey != null, out started);   // or the slider the left stick selected
+        ShowUndo();
+        if (step == 0) return;
+        var use = nudge.Filter(Ticks.TickedKeys());   // the ticked sliders of the ticked sections, else the selected one
+        if (started) nudge.BeginUndo(use);            // the last slider(s) used, for the one undo (X, ↶)
+        Ticks.StepKeys((int)step, use);
+    }
+    Button undoAll, redoAll;
+    void ShowUndo() {
+        if (undoAll == null) return;
+        bool u = nudge.CanUndo, r = nudge.CanRedo;
+        if (undoAll.Enabled != u) undoAll.Enabled = u;
+        if (redoAll.Enabled != r) redoAll.Enabled = r;
     }
 
     // "default" = every gun; otherwise the gun in hand's own numbers (laid over "default" by the game)
